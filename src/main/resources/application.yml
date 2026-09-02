@@ -1,0 +1,52 @@
+spring:
+  output:
+    ansi:
+      enabled: ALWAYS
+  application:
+    name: HRMS-Application
+  profiles:
+    active: dev
+#   mvc:
+#     throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+# SpringDoc OpenAPI / Swagger Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    display-request-duration: true
+    doc-expansion: list
+    filter: true
+    try-it-out-enabled: true
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,env,beans,mappings
+
+# Application Security Configuration
+application:
+  security:
+    jwt:
+      # 512-bit Base64/Hex secret key
+      secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D6351655468576D5A7134743777217A25432A
+      expiration-ms: 86400000 # 24 hours
+      refresh-token-expiration-ms: 604800000 # 7 days
+      issuer: hrms-application

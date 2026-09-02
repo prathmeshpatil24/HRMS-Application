@@ -1,9 +1,8 @@
-package com.enotes.utils.entity;
+package com.hrms.common.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +11,6 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
 
 import java.time.LocalDateTime;
 
@@ -25,7 +23,7 @@ public class BaseModel {
 
     @CreatedBy
     @Column(updatable = false, name = "created_by")
-    private Integer createdBy;
+    private Long createdBy;
 
     @CreatedDate
     @Column(updatable = false ,name = "created_at")
@@ -33,12 +31,11 @@ public class BaseModel {
 
     @LastModifiedBy
     @Column(name = "updated_by")
-    private Integer updatedBy;
+    private Long updatedBy;
 
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     public BaseModel(){}
-
 }
