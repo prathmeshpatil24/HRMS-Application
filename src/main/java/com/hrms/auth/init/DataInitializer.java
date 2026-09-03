@@ -55,8 +55,7 @@ public class DataInitializer implements CommandLineRunner {
                 Map.entry("LEAVE_APPROVE", "Permission to approve or reject leave requests"),
                 Map.entry("PAYROLL_READ", "Permission to view payroll reports"),
                 Map.entry("PAYROLL_MANAGE", "Permission to process and manage payroll"),
-                Map.entry("AUDIT_LOG_VIEW", "Permission to inspect system audit logs")
-        );
+                Map.entry("AUDIT_LOG_VIEW", "Permission to inspect system audit logs"));
 
         Map<String, Permission> permissionMap = new HashMap<>();
 
@@ -84,7 +83,8 @@ public class DataInitializer implements CommandLineRunner {
         Map<String, Role> roleMap = new HashMap<>();
 
         // 1. ROLE_ADMIN (Full system access)
-        Role adminRole = getOrCreateRole("ROLE_ADMIN", "System Administrator with full access", new HashSet<>(permissions.values()));
+        Role adminRole = getOrCreateRole("ROLE_ADMIN", "System Administrator with full access",
+                new HashSet<>(permissions.values()));
         roleMap.put("ROLE_ADMIN", adminRole);
 
         // 2. ROLE_HR (Human Resources)
@@ -97,8 +97,7 @@ public class DataInitializer implements CommandLineRunner {
                 permissions.get("LEAVE_APPROVE"),
                 permissions.get("PAYROLL_READ"),
                 permissions.get("PAYROLL_MANAGE"),
-                permissions.get("USER_READ")
-        ));
+                permissions.get("USER_READ")));
         Role hrRole = getOrCreateRole("ROLE_HR", "Human Resources Manager", hrPermissions);
         roleMap.put("ROLE_HR", hrRole);
 
@@ -108,8 +107,7 @@ public class DataInitializer implements CommandLineRunner {
                 permissions.get("DEPARTMENT_READ"),
                 permissions.get("LEAVE_READ"),
                 permissions.get("LEAVE_APPLY"),
-                permissions.get("LEAVE_APPROVE")
-        ));
+                permissions.get("LEAVE_APPROVE")));
         Role managerRole = getOrCreateRole("ROLE_MANAGER", "Department / Team Manager", managerPermissions);
         roleMap.put("ROLE_MANAGER", managerRole);
 
@@ -118,28 +116,28 @@ public class DataInitializer implements CommandLineRunner {
                 permissions.get("EMPLOYEE_READ"),
                 permissions.get("LEAVE_READ"),
                 permissions.get("LEAVE_APPLY"),
-                permissions.get("PAYROLL_READ")
-        ));
+                permissions.get("PAYROLL_READ")));
         Role employeeRole = getOrCreateRole("ROLE_EMPLOYEE", "Standard Employee", employeePermissions);
         roleMap.put("ROLE_EMPLOYEE", employeeRole);
 
         return roleMap;
     }
 
+    // Approach 1: Strict Sync (Remove permissions that are missing from code)
+
     private Role getOrCreateRole(String roleName, String description, Set<Permission> permissions) {
         return roleRepository.findByName(roleName)
                 .map(existingRole -> {
-                    if (existingRole.getPermissions() == null || existingRole.getPermissions().isEmpty()) {
-                        existingRole.setPermissions(permissions);
-                        return roleRepository.save(existingRole);
-                    }
-                    return existingRole;
+                    existingRole.setDescription(description);
+                    existingRole.setPermissions(new HashSet<>(permissions));
+                    log.info("Updated role: {}", roleName);
+                    return roleRepository.save(existingRole);
                 })
                 .orElseGet(() -> {
                     Role role = Role.builder()
                             .name(roleName)
                             .description(description)
-                            .permissions(permissions)
+                            .permissions(new HashSet<>(permissions))
                             .build();
                     log.info("Seeding role: {}", roleName);
                     return roleRepository.save(role);
@@ -163,5 +161,44 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(admin);
             log.info("Default Super Admin user initialized successfully.");
         }
+
     }
 }
+
+/*
+ * Approach 2: Additive / Merge Sync (Preserves Dynamically Added Permissions)
+ * Use this if admins can manually assign custom permissions to roles via
+ * UI/APIs in production, and you only want DataInitializer to add any newly
+ * added permissions without removing existing ones.
+ * private Role getOrCreateRole(String roleName, String description,
+ * Set<Permission> permissions) {
+ * return roleRepository.findByName(roleName)
+ * .map(existingRole -> {
+ * existingRole.setDescription(description);
+ * 
+ * Set<Permission> currentPermissions = existingRole.getPermissions() != null
+ * ? existingRole.getPermissions()
+ * : new HashSet<>();
+ * 
+ * // Add new permissions from code into existing permissions
+ * boolean isUpdated = currentPermissions.addAll(permissions);
+ * 
+ * if (isUpdated) {
+ * existingRole.setPermissions(currentPermissions);
+ * log.info("Added new permissions to existing role: {}", roleName);
+ * return roleRepository.save(existingRole);
+ * }
+ * 
+ * return existingRole;
+ * })
+ * .orElseGet(() -> {
+ * Role role = Role.builder()
+ * .name(roleName)
+ * .description(description)
+ * .permissions(new HashSet<>(permissions))
+ * .build();
+ * log.info("Seeding new role: {}", roleName);
+ * return roleRepository.save(role);
+ * });
+ * }
+ */

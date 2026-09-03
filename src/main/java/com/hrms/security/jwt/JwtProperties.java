@@ -22,11 +22,6 @@ public class JwtProperties {
     private long expirationMs = 86400000L;
 
     /**
-     * Refresh token expiration time in milliseconds (e.g., 7 days = 604800000 ms).
-     */
-    private long refreshTokenExpirationMs = 604800000L;
-
-    /**
      * Token issuer identification.
      */
     private String issuer = "hrms-application";

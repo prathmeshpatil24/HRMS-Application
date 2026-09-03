@@ -2,17 +2,16 @@ package com.hrms.auth.service.impl;
 
 import com.hrms.auth.dto.*;
 import com.hrms.auth.entity.Permission;
-import com.hrms.auth.entity.RefreshToken;
+import com.hrms.auth.entity.LoginActivity;
 import com.hrms.auth.entity.Role;
 import com.hrms.auth.entity.User;
 import com.hrms.auth.repository.RoleRepository;
 import com.hrms.auth.repository.UserRepository;
+import com.hrms.auth.repository.LoginActivityRepository;
 import com.hrms.auth.service.AuthService;
-import com.hrms.auth.service.RefreshTokenService;
 import com.hrms.common.exception.BadRequestException;
 import com.hrms.common.exception.DuplicateResourceException;
 import com.hrms.common.exception.ResourceNotFoundException;
-import com.hrms.common.exception.TokenRefreshException;
 import com.hrms.common.exception.UnauthorizedException;
 import com.hrms.common.util.HttpRequestUtils;
 import com.hrms.security.jwt.JwtProperties;
@@ -30,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
-    private final RefreshTokenService refreshTokenService;
+    private final LoginActivityRepository loginActivityRepository;
     private final JwtProperties jwtProperties;
 
     @Override
@@ -91,7 +91,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("Successfully registered user with ID: [{}]", savedUser.getId());
 
         return RegisterResponse.builder()
-                .message("User registered successfully")
+                //.message("User registered successfully")
                 .user(mapToUserResponse(savedUser))
                 .build();
     }
@@ -113,21 +113,25 @@ public class AuthServiceImpl implements AuthService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         String accessToken = jwtTokenProvider.generateToken(authentication);
 
-        String deviceInfo = (request.getDeviceInfo() != null && !request.getDeviceInfo().isBlank())
-                ? request.getDeviceInfo().trim()
-                : HttpRequestUtils.getUserAgent(httpRequest);
-        String ipAddress = HttpRequestUtils.getClientIp(httpRequest);
-
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId(), deviceInfo, ipAddress);
-
         User user = userRepository.findByIdWithRolesAndPermissions(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
+
+        String deviceInfo = resolveDeviceInfo(request, httpRequest);
+        String ipAddress = HttpRequestUtils.getClientIp(httpRequest);
+
+
+        // Record the login activity
+        loginActivityRepository.save(LoginActivity.builder()
+                .user(user)
+                .deviceInfo(deviceInfo)
+                .ipAddress(ipAddress)
+                .loggedInAt(Instant.now())
+                .build());
 
         log.info("User [{}] logged in successfully from device: [{}] (IP: {})", user.getUsername(), deviceInfo, ipAddress);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
                 .expiresIn(jwtProperties.getExpirationMs())
                 .user(mapToUserResponse(user))
@@ -136,96 +140,40 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public TokenRefreshResponse refreshToken(RefreshTokenRequest request, HttpServletRequest httpRequest) {
-        String tokenStr = request.getRefreshToken();
-
-        RefreshToken refreshToken = refreshTokenService.findByToken(tokenStr)
-                .orElseThrow(() -> new TokenRefreshException(tokenStr, "Refresh token is not registered in system"));
-
-        refreshToken = refreshTokenService.verifyExpiration(refreshToken);
-
+    public void logout(HttpServletRequest httpRequest) {
+        CustomUserDetails userDetails = getAuthenticatedUserDetails();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
         String deviceInfo = HttpRequestUtils.getUserAgent(httpRequest);
         String ipAddress = HttpRequestUtils.getClientIp(httpRequest);
 
-        RefreshToken rotatedToken = refreshTokenService.rotateRefreshToken(refreshToken, deviceInfo, ipAddress);
+        loginActivityRepository
+                .findFirstByUserAndDeviceInfoAndIpAddressAndLogoutAtIsNullOrderByLoggedInAtDesc(user, deviceInfo, ipAddress)
+                .ifPresent(activity -> activity.markLoggedOut(Instant.now()));
 
-        User user = rotatedToken.getUser();
-        CustomUserDetails userDetails = CustomUserDetails.build(user);
-
-        String newAccessToken = jwtTokenProvider.generateTokenForUserDetails(userDetails);
-
-        log.info("Refreshed access token successfully for user [{}] on device [{}]", user.getUsername(), rotatedToken.getDeviceInfo());
-
-        return TokenRefreshResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(rotatedToken.getToken())
-                .tokenType("Bearer")
-                .expiresIn(jwtProperties.getExpirationMs())
-                .build();
-    }
-
-    @Override
-    @Transactional
-    public void logout(String refreshTokenStr) {
-        CustomUserDetails userDetails = getAuthenticatedUserDetails();
-
-        if (refreshTokenStr == null || refreshTokenStr.isBlank()) {
-            throw new BadRequestException("Refresh token is required to logout.");
-        }
-
-        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr)
-                .orElseThrow(() -> new ResourceNotFoundException("RefreshToken", "token", refreshTokenStr));
-
-        if (!refreshToken.getUser().getId().equals(userDetails.getId())) {
-            throw new BadRequestException("The refresh token does not belong to the currently authenticated user.");
-        }
-
-        refreshTokenService.revokeRefreshToken(refreshTokenStr);
         SecurityContextHolder.clearContext();
-        log.info("User [{}] logged out from device session [{}]", userDetails.getUsername(), refreshToken.getDeviceInfo());
+        log.info("User [{}] logged out. The client must discard its access token.", userDetails.getUsername());
     }
 
-    @Override
-    @Transactional
-    public void logoutAll() {
-        CustomUserDetails userDetails = getAuthenticatedUserDetails();
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
-
-        refreshTokenService.revokeAllUserTokens(user);
-        SecurityContextHolder.clearContext();
-        log.info("User [{}] logged out from ALL active devices/sessions", userDetails.getUsername());
-    }
 
     @Override
     @Transactional(readOnly = true)
-    public List<UserSessionResponse> getActiveSessions() {
+    public List<LoginActivityResponse> getLoginHistory() {
         CustomUserDetails userDetails = getAuthenticatedUserDetails();
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
 
-        return refreshTokenService.getActiveSessions(user).stream()
-                .map(token -> UserSessionResponse.builder()
-                        .id(token.getId())
-                        .deviceInfo(token.getDeviceInfo())
-                        .ipAddress(token.getIpAddress())
-                        .createdAt(token.getCreatedAt())
-                        .lastUsedAt(token.getLastUsedAt())
-                        .expiryDate(token.getExpiryDate())
-                        .active(!token.isRevoked() && !token.isExpired())
+        List<LoginActivityResponse> loginActivityResponse = loginActivityRepository.findByUserOrderByLoggedInAtDesc(user).stream()
+                .map(activity -> LoginActivityResponse.builder()
+                        .id(activity.getId())
+                        .deviceInfo(activity.getDeviceInfo())
+                        .ipAddress(activity.getIpAddress())
+                        .loggedInAt(activity.getLoggedInAt())
+                        .logoutAt(activity.getLogoutAt())
                         .build()
                 )
                 .toList();
-    }
-
-    @Override
-    @Transactional
-    public void revokeSession(Long sessionId) {
-        CustomUserDetails userDetails = getAuthenticatedUserDetails();
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
-
-        refreshTokenService.revokeSessionById(sessionId, user);
+        return loginActivityResponse;
     }
 
     @Override
@@ -261,20 +209,26 @@ public class AuthServiceImpl implements AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        // Invalidate all active sessions / refresh tokens
-        refreshTokenService.revokeAllUserTokens(user);
-
         log.info("Password changed successfully for user [{}]", user.getUsername());
     }
 
-    private CustomUserDetails getAuthenticatedUserDetails() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
-            throw new UnauthorizedException("User is not authenticated. Valid JWT Bearer token is required.");
+    private String resolveDeviceInfo(LoginRequest request, HttpServletRequest httpRequest) {
+        if (request.getDeviceInfo() != null && !request.getDeviceInfo().isBlank()) {
+            return request.getDeviceInfo().trim();
         }
-        return userDetails;
+        return HttpRequestUtils.getUserAgent(httpRequest);
     }
 
+    // Helper method to retrieve the currently authenticated user's details
+    private CustomUserDetails getAuthenticatedUserDetails() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("User is not authenticated. Valid JWT Bearer token is required.");
+        }
+        return (CustomUserDetails) authentication.getPrincipal();
+    }
+
+    // Helper method to map User entity to UserResponse DTO
     private UserResponse mapToUserResponse(User user) {
         Set<String> roleNames = new HashSet<>();
         Set<String> permissionNames = new HashSet<>();

@@ -30,7 +30,7 @@ public class OpenApiConfig {
                         .title("Human Resource Management System (HRMS) REST API")
                         .description("### Production-Grade HRMS Backend API Documentation\n\n"
                                 + "This API provides enterprise capabilities for Human Resource Management:\n"
-                                + "- **Authentication & Authorization**: Spring Security 6 + JWT + Refresh Token Rotation\n"
+                                + "- **Authentication & Authorization**: Spring Security 6 + JWT access tokens\n"
                                 + "- **Role-Based Access Control (RBAC)**: Fine-grained roles (`ROLE_ADMIN`, `ROLE_HR`, `ROLE_MANAGER`, `ROLE_EMPLOYEE`) and permissions\n"
                                 + "- **Standard Responses**: Unified `ApiResponse<T>` & `ApiErrorResponse` envelopes\n\n"
                                 + "**Authentication Instructions**:\n"

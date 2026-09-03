@@ -32,6 +32,7 @@ public class JwtTokenProvider {
         this.signingKey = getSigningKey();
     }
 
+//    signing key helper
     private SecretKey getSigningKey() {
         String secret = jwtProperties.getSecretKey();
         byte[] keyBytes;
@@ -47,6 +48,9 @@ public class JwtTokenProvider {
             keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         }
         return Keys.hmacShaKeyFor(keyBytes);
+
+        /*
+        * return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)));*/
     }
 
     public String generateToken(Authentication authentication) {

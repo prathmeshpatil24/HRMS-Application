@@ -33,17 +33,17 @@ public class CustomUserDetails implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static CustomUserDetails build(User user) {
-        Set<GrantedAuthority> authorities = new HashSet<>();
+        Set<GrantedAuthority> grantedAuthorities  = new HashSet<>();
 
         if (user.getRoles() != null) {
             user.getRoles().forEach(role -> {
                 // Add Role authority (e.g., ROLE_ADMIN, ROLE_HR)
-                authorities.add(new SimpleGrantedAuthority(role.getName()));
+                grantedAuthorities .add(new SimpleGrantedAuthority(role.getName()));
 
                 // Add granular Permissions attached to this Role (e.g., USER_READ, USER_WRITE)
                 if (role.getPermissions() != null) {
                     role.getPermissions().forEach(permission ->
-                            authorities.add(new SimpleGrantedAuthority(permission.getName())));
+                            grantedAuthorities .add(new SimpleGrantedAuthority(permission.getName())));
                 }
             });
         }
@@ -57,18 +57,20 @@ public class CustomUserDetails implements UserDetails {
                 .password(user.getPassword())
                 .active(user.isActive())
                 .accountNonLocked(user.isAccountNonLocked())
-                .authorities(authorities)
+                .authorities(grantedAuthorities)
                 .build();
+    }
+
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
     }
 
     public String getFullName() {
         return String.format("%s %s", firstName, lastName).trim();
     }
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
-    }
 
     @Override
     public String getPassword() {
@@ -82,7 +84,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return accountNonLocked;
     }
 
     @Override

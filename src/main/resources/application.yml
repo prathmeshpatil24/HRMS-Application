@@ -48,5 +48,4 @@ application:
       # 512-bit Base64/Hex secret key
       secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D6351655468576D5A7134743777217A25432A
       expiration-ms: 86400000 # 24 hours
-      refresh-token-expiration-ms: 604800000 # 7 days
-      issuer: hrms-application
+      issuer: hrms-application

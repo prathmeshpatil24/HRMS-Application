@@ -83,10 +83,9 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Public Auth Endpoints: Only login, token refresh, and registration
+                        // Public Auth Endpoints: login and registration
                         .requestMatchers(
                                 "/api/v1/auth/login",
-                                "/api/v1/auth/refresh-token",
                                 "/api/v1/auth/register"
                         ).permitAll()
                         // Swagger / OpenAPI documentation

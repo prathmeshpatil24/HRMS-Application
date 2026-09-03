@@ -30,8 +30,8 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiErrorResponse> handleValidationExceptions(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, HttpServletRequest request)
+    {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
@@ -53,8 +53,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiErrorResponse> handleConstraintViolationException(
-            ConstraintViolationException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleConstraintViolationException(ConstraintViolationException ex, HttpServletRequest request)
+    {
         Map<String, String> errors = new HashMap<>();
         ex.getConstraintViolations().forEach(violation ->
                 errors.put(violation.getPropertyPath().toString(), violation.getMessage()));
@@ -88,8 +88,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiErrorResponse> handleBadCredentialsException(
-            BadCredentialsException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleBadCredentialsException(BadCredentialsException ex, HttpServletRequest request)
+    {
         log.warn("Authentication failed: {}", ex.getMessage());
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
@@ -104,8 +104,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UsernameNotFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleUsernameNotFoundException(
-            UsernameNotFoundException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleUsernameNotFoundException(UsernameNotFoundException ex, HttpServletRequest request)
+    {
         log.warn("User not found: {}", ex.getMessage());
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
@@ -120,8 +120,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(LockedException.class)
-    public ResponseEntity<ApiErrorResponse> handleLockedException(
-            LockedException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleLockedException(LockedException ex, HttpServletRequest request)
+    {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.LOCKED.value())
@@ -135,8 +135,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DisabledException.class)
-    public ResponseEntity<ApiErrorResponse> handleDisabledException(
-            DisabledException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleDisabledException(DisabledException ex, HttpServletRequest request)
+    {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.FORBIDDEN.value())
@@ -150,8 +150,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiErrorResponse> handleAccessDeniedException(
-            AccessDeniedException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request)
+    {
         log.warn("Access denied on path [{}]: {}", request.getRequestURI(), ex.getMessage());
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
@@ -165,25 +165,9 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
-    @ExceptionHandler(TokenRefreshException.class)
-    public ResponseEntity<ApiErrorResponse> handleTokenRefreshException(
-            TokenRefreshException ex, HttpServletRequest request) {
-        log.warn("Token refresh failed: {}", ex.getMessage());
-        ApiErrorResponse response = ApiErrorResponse.builder()
-                .success(false)
-                .status(HttpStatus.FORBIDDEN.value())
-                .error(HttpStatus.FORBIDDEN.getReasonPhrase())
-                .message(ex.getMessage())
-                .path(request.getRequestURI())
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
-    }
-
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(
-            HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, HttpServletRequest request)
+    {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.METHOD_NOT_ALLOWED.value())
@@ -197,8 +181,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    public ResponseEntity<ApiErrorResponse> handleMediaTypeNotSupported(
-            HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex, HttpServletRequest request)
+    {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value())
@@ -212,8 +196,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiErrorResponse> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpServletRequest request)
+    {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.BAD_REQUEST.value())
@@ -242,8 +226,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(
-            NoResourceFoundException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request)
+    {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.NOT_FOUND.value())
@@ -257,8 +241,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> handleGeneralException(
-            Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleGeneralException(Exception ex, HttpServletRequest request)
+    {
         log.error("Unhandled internal server error occurred on path [{}]: ", request.getRequestURI(), ex);
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .success(false)
