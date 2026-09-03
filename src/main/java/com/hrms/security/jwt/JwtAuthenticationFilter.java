@@ -35,41 +35,78 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              HttpServletResponse response,
              FilterChain filterChain) throws ServletException, IOException {
 
+        // 1. Extract Authorization header
+        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        String token = null;
+        String username = null;
         try {
-            String jwt = parseJwt(request);
+            // 2. Check if Bearer token is present and extract it
+            if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+                token = authHeader.replace(BEARER_PREFIX, "").trim();
 
-            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-                String username = jwtTokenProvider.getUsernameFromToken(jwt);
-
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-                    if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails,
-                                        null,
-                                        userDetails.getAuthorities());
-
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    }
+                // 3. Validate token signature and extract username
+                if (jwtTokenProvider.validateToken(token)) {
+                    username = jwtTokenProvider.getUsernameFromToken(token);
+                }
+            }
+            // 4. If username exists and no authentication is already present in SecurityContext
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // Verify user is active and not locked
+                if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Set authentication in Spring Security context
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication in security context: {}", e.getMessage());
+            log.error("Could not set user authentication in security context: {}", e.getMessage());
         }
-
+        // 5. Always continue the filter chain
         filterChain.doFilter(request, response);
+
+
+//        try {
+//            String jwt = parseJwt(request);
+//
+//            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+//                String username = jwtTokenProvider.getUsernameFromToken(jwt);
+//
+//                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+//                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+//
+//                    if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
+//                        UsernamePasswordAuthenticationToken authentication =
+//                                new UsernamePasswordAuthenticationToken(
+//                                        userDetails,
+//                                        null,
+//                                        userDetails.getAuthorities());
+//
+//                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+//                        SecurityContextHolder.getContext().setAuthentication(authentication);
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            log.error("Cannot set user authentication in security context: {}", e.getMessage());
+//        }
+//
+//        filterChain.doFilter(request, response);
     }
 
-    private String parseJwt(HttpServletRequest request) {
-        String headerAuth = request.getHeader(AUTHORIZATION_HEADER);
-
-        if (StringUtils.hasText(headerAuth) && headerAuth.startsWith(BEARER_PREFIX)) {
-            return headerAuth.substring(BEARER_PREFIX.length());
-        }
-
-        return null;
-    }
+//    private String parseJwt(HttpServletRequest request) {
+//        String headerAuth = request.getHeader(AUTHORIZATION_HEADER);
+//
+//        if (StringUtils.hasText(headerAuth) && headerAuth.startsWith(BEARER_PREFIX)) {
+//            return headerAuth.substring(BEARER_PREFIX.length());
+//        }
+//
+//        return null;
+//    }
 }

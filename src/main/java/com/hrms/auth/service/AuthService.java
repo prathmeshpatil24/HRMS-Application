@@ -11,15 +11,9 @@ public interface AuthService {
 
     AuthResponse login(LoginRequest request, HttpServletRequest httpRequest);
 
-    TokenRefreshResponse refreshToken(RefreshTokenRequest request, HttpServletRequest httpRequest);
+    void logout();
 
-    void logout(String refreshToken);
-
-    void logoutAll();
-
-    List<UserSessionResponse> getActiveSessions();
-
-    void revokeSession(Long sessionId);
+    List<LoginActivityResponse> getLoginHistory();
 
     UserResponse getCurrentUserProfile();
 
