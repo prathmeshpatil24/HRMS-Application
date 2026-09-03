@@ -19,4 +19,5 @@ public class LoginActivityResponse {
     private String deviceInfo;
     private String ipAddress;
     private Instant loggedInAt;
+    private Instant logoutAt;
 }

@@ -110,6 +110,26 @@ class AuthServiceTest {
     }
 
     @Test
+    void logout_marksMatchingOpenLoginActivityWithLogoutTimestamp() {
+        CustomUserDetails userDetails = CustomUserDetails.build(user);
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities()));
+        LoginActivity activity = LoginActivity.builder().id(10L).user(user).deviceInfo("Mozilla/5.0")
+                .ipAddress("192.168.1.10").loggedInAt(Instant.now()).build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(httpRequest.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
+        when(httpRequest.getRemoteAddr()).thenReturn("192.168.1.10");
+        when(loginActivityRepository.findFirstByUserAndDeviceInfoAndIpAddressAndLogoutAtIsNullOrderByLoggedInAtDesc(
+                user, "Mozilla/5.0", "192.168.1.10")).thenReturn(Optional.of(activity));
+
+        authService.logout(httpRequest);
+
+        assertNotNull(activity.getLogoutAt());
+        verify(loginActivityRepository).findFirstByUserAndDeviceInfoAndIpAddressAndLogoutAtIsNullOrderByLoggedInAtDesc(
+                user, "Mozilla/5.0", "192.168.1.10");
+    }
+
+    @Test
     void register_usesDefaultEmployeeRole() {
         Role role = Role.builder().id(1L).name("ROLE_EMPLOYEE").permissions(new HashSet<>()).build();
         RegisterRequest request = RegisterRequest.builder().firstName("John").lastName("Doe").username("johndoe")

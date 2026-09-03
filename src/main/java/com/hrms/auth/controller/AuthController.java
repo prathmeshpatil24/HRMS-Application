@@ -2,12 +2,7 @@ package com.hrms.auth.controller;
 
 import com.hrms.auth.dto.*;
 import com.hrms.auth.service.AuthService;
-import com.hrms.common.response.ApiErrorResponse;
-import com.hrms.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,10 +57,12 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @SecurityRequirement(name = "Bearer Authentication")
+    @SecurityRequirement(name = "Bearer Authentication") // @SecurityRequirement is a Swagger/OpenAPI annotation. It tells Swagger UI:
+    // This API endpoint requires authentication/security
     @Operation(summary = "Logout", description = "With stateless JWT authentication, this endpoint confirms logout; the client must discard its access token.")
-    public ResponseEntity<?> logout() {
-        authService.logout();
+    public ResponseEntity<?> logout(HttpServletRequest httpRequest) {
+        authService.logout(httpRequest);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(Map.of(
                         "success", true,
@@ -83,54 +80,42 @@ public class AuthController {
     @Operation(summary = "Get login history", description = "Retrieves device and IP address information for successful logins.")
     public ResponseEntity<?> getLoginHistory(HttpServletRequest request) {
         List<LoginActivityResponse> history = authService.getLoginHistory();
+
         return ResponseEntity.status(HttpStatus.OK)
-                .body(Map.of("success", true, "status", HttpStatus.OK,
-                        "message", "Login history retrieved successfully", "data", history,
+                .body(Map.of("success", true,
+                        "status", HttpStatus.OK,
+                        "message", "Login history retrieved successfully",
+                        "data", history,
                         "timestamp", java.time.LocalDateTime.now(), "path", request.getRequestURI()));
     }
 
     @GetMapping("/me")
     @SecurityRequirement(name = "Bearer Authentication")
     @Operation(summary = "Get current authenticated user profile", description = "Returns details and assigned roles/permissions of the currently authenticated user.")
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "User profile retrieved successfully",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - Missing or invalid JWT token",
-                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
-            )
-    })
-    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
+    public ResponseEntity<?> getCurrentUser(HttpServletRequest httpRequest) {
         UserResponse user = authService.getCurrentUserProfile();
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("Current user profile retrieved successfully", user));
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(Map.of("success", true,
+                        "status", HttpStatus.OK,
+                        "message", "Current user profile retrieved successfully",
+                        "data", user,
+                        "timestamp", java.time.LocalDateTime.now(),
+                        "path", httpRequest.getRequestURI()));
     }
 
     @PostMapping("/change-password")
     @SecurityRequirement(name = "Bearer Authentication")
     @Operation(summary = "Change password", description = "Changes password for the currently authenticated user.")
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Password updated successfully",
-                    content = @Content(schema = @Schema(implementation = MessageResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Current password incorrect or passwords do not match",
-                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized",
-                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
-            )
-    })
-    public ResponseEntity<ApiResponse<MessageResponse>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request, HttpServletRequest httpRequest) {
         authService.changePassword(request);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("Password changed successfully", new MessageResponse("Password has been updated successfully")));
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(Map.of("success", true,
+                        "status", HttpStatus.OK,
+                        "message", "Password changed successfully",
+                        "data", new MessageResponse("Password has been updated successfully"),
+                        "timestamp", java.time.LocalDateTime.now(),
+                        "path", httpRequest.getRequestURI()));
     }
 }

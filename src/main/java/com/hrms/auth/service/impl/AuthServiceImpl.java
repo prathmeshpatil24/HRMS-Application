@@ -118,6 +118,9 @@ public class AuthServiceImpl implements AuthService {
 
         String deviceInfo = resolveDeviceInfo(request, httpRequest);
         String ipAddress = HttpRequestUtils.getClientIp(httpRequest);
+
+
+        // Record the login activity
         loginActivityRepository.save(LoginActivity.builder()
                 .user(user)
                 .deviceInfo(deviceInfo)
@@ -137,8 +140,17 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void logout() {
+    public void logout(HttpServletRequest httpRequest) {
         CustomUserDetails userDetails = getAuthenticatedUserDetails();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
+        String deviceInfo = HttpRequestUtils.getUserAgent(httpRequest);
+        String ipAddress = HttpRequestUtils.getClientIp(httpRequest);
+
+        loginActivityRepository
+                .findFirstByUserAndDeviceInfoAndIpAddressAndLogoutAtIsNullOrderByLoggedInAtDesc(user, deviceInfo, ipAddress)
+                .ifPresent(activity -> activity.markLoggedOut(Instant.now()));
+
         SecurityContextHolder.clearContext();
         log.info("User [{}] logged out. The client must discard its access token.", userDetails.getUsername());
     }
@@ -151,15 +163,17 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userDetails.getId()));
 
-        return loginActivityRepository.findByUserOrderByLoggedInAtDesc(user).stream()
+        List<LoginActivityResponse> loginActivityResponse = loginActivityRepository.findByUserOrderByLoggedInAtDesc(user).stream()
                 .map(activity -> LoginActivityResponse.builder()
                         .id(activity.getId())
                         .deviceInfo(activity.getDeviceInfo())
                         .ipAddress(activity.getIpAddress())
                         .loggedInAt(activity.getLoggedInAt())
+                        .logoutAt(activity.getLogoutAt())
                         .build()
                 )
                 .toList();
+        return loginActivityResponse;
     }
 
     @Override
@@ -205,12 +219,13 @@ public class AuthServiceImpl implements AuthService {
         return HttpRequestUtils.getUserAgent(httpRequest);
     }
 
+    // Helper method to retrieve the currently authenticated user's details
     private CustomUserDetails getAuthenticatedUserDetails() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             throw new UnauthorizedException("User is not authenticated. Valid JWT Bearer token is required.");
         }
-        return userDetails;
+        return (CustomUserDetails) authentication.getPrincipal();
     }
 
     // Helper method to map User entity to UserResponse DTO

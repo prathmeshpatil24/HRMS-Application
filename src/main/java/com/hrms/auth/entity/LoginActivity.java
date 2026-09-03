@@ -45,4 +45,11 @@ public class LoginActivity {
 
     @Column(name = "logged_in_at", nullable = false, updatable = false)
     private Instant loggedInAt;
+
+    @Column(name = "logout_at")
+    private Instant logoutAt;
+
+    public void markLoggedOut(Instant logoutAt) {
+        this.logoutAt = logoutAt;
+    }
 }

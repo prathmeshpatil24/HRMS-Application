@@ -11,7 +11,7 @@ public interface AuthService {
 
     AuthResponse login(LoginRequest request, HttpServletRequest httpRequest);
 
-    void logout();
+    void logout(HttpServletRequest httpRequest);
 
     List<LoginActivityResponse> getLoginHistory();
 
