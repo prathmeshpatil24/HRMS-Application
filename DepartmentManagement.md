@@ -74,6 +74,7 @@ Department Module
 ├── Employee Count                    ⏳ Employee module dependency
 ├── Prevent deactivation with
 │   active employees                  ⏳ Employee module dependency
+├── Department Head               ⏳ Employee module dependency
 │
 ├── Search / Filter                   🔜 Recommended
 ├── Pagination                        🔜 Recommended
