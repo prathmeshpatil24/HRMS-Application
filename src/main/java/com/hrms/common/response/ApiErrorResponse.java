@@ -1,5 +1,6 @@
 package com.hrms.common.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,5 +26,6 @@ public class ApiErrorResponse {
     private Map<String, String> validationErrors;
     private List<String> details;
     @Builder.Default
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
     private LocalDateTime timestamp = LocalDateTime.now();
 }
